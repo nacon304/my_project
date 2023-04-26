@@ -1,16 +1,3 @@
-# import scrapy
-# from quotes_js_scraper.items import QuoteItem
-
-
-# class QuotesSpider(scrapy.Spider):
-#     name = 'quotes'
-#     allowed_domains = ['quotes.toscrape.com']
-#     start_urls = ['http://quotes.toscrape.com/']
-
-#     def parse(self, response):
-#         pass
-
-## spider.py
 import json
 import math
 import scrapy
@@ -21,50 +8,59 @@ from selenium.webdriver.support import expected_conditions as EC
 from urllib.parse import urlencode
 
 class WebCrawlerSpider(scrapy.Spider):
-    name = 'TikiCrawler'
+    name = 'NguyenKimCrawler'
 
     def start_requests(self):
-        # 'laptop/c8095'
-        # 'ram-may-tinh/c2680'
-        # 'o-cung-gan-trong/c28844'
-        # 'man-hinh-may-tinh/c2665'
-        # 'ban-phim-choi-game/c5267'
-        # 'chuot-choi-game/c3428'
-        keyword_list = ['chuot-choi-game/c3428']
-        for keyword in keyword_list:
-            payload = {'sort': 'newest', 'page': 1}
-            crawler_search_url = 'https://tiki.vn/' + keyword + '?' + urlencode(payload)
-            yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=0.5, meta={'keyword': keyword,'page': 1})
+        crawler_search_url = 'https://www.nguyenkim.com/laptop-may-tinh-xach-tay/page-4/'
+        yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=30, wait_until=EC.presence_of_element_located((By.CSS_SELECTOR, '#pagination_contents > script')))
 
     def parse_search_results(self, response):
-        page = response.meta['page']
-        keyword = response.meta['keyword']
-        script_tag  = response.xpath('//*[@id="__NEXT_DATA__"]/text()').get()
-        if script_tag is not None:
-            json_blob = json.loads(script_tag)
+        # page = response.meta['trang']
+        # keyword = response.meta['keyword']
+        products = response.css('#pagination_contents > script::text').getall()
+        # products = json.loads(products) 
+        # print(products[0])
+        for i in range(26):
+            # product = json.loads(product)
+            # crawler_product_url = product['offers']['url']
+            # print(response.css(f'#pagination_contents > a').get())
+            item = json.loads(products[i])
+            # print(item)
+            yield {
+                'Url': item['offers']['url'],
+                'Name': item['name'],
+                'Price': item['offers']['price']
+            }
+            # yield SeleniumRequest(url=crawler_product_url, callback=self.parse_product_data, wait_time=10, wait_until=EC.presence_of_element_located((By.CSS_SELECTOR, '#root > script:nth-child(4)')), meta={'url': crawler_product_url})
 
-            product_list = json_blob["props"]["initialState"]["catalog"]["data"]
-            for product in product_list:
-                crawler_product_url = 'https://tiki.vn/' + product.get('url_path', '')
-                yield scrapy.Request(url=crawler_product_url, callback=self.parse_product_data, meta={'keyword': keyword, 'page': page, 'product': product, 'url': crawler_product_url})
-
-            # Request Next Page
-            if page == 1:
-                max_pages = json_blob["props"]["initialState"]["catalog"]["paging"]["last_page"]
-                # if max_pages > 10:
-                #     max_pages = 10
-                for p in range(2, 5):
-                    payload = {'sort': 'newest', 'page': p}
-                    crawler_search_url = 'https://tiki.vn/' + keyword + '?' + urlencode(payload)
-                    yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=0.5, meta={'keyword': keyword, 'page': p})
+            # # Request Next Page
+            # if page == 1:
+            #     max_pages = json_blob["props"]["initialState"]["catalog"]["paging"]["last_page"]
+            #     # if max_pages > 10:
+            #     #     max_pages = 10
+            #     for p in range(2, 5):
+            #         payload = {'sort': 'newest', 'page': p}
+            #         crawler_search_url = 'https://tiki.vn/' + keyword + '?' + urlencode(payload)
+            #         yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=0.5, meta={'keyword': keyword, 'page': p})
 
     def parse_product_data(self, response):
+        detail_product = json.loads(response.css('#root > script:nth-child(4)::text').get())
+        # print(detail_product['additionalProperty'][8]['value'])
         yield {
-            'Name': response.meta['product']['name'],
-            'Price': response.meta['product']['price'],
-            'Imgs': response.css("#__next > div:nth-child(1) > main > div.Container-sc-itwfbd-0.hfMLFx > div.styles__Wrapper-sc-8ftkqd-0.eypWKn > div.style__ProductImagesStyle-sc-1fmads3-0.fymfgs > div.review-images > div picture img ::attr(src)").getall(),
-            'url': response.meta['url']
+            'Name': detail_product['name'],
+            'Price': findPrice(detail_product['offers']),
+            'Brand': detail_product['brand']['name'],
+            'Url': response.meta['url'],
+            'Rated': detail_product['aggregateRating']['ratingValue'],
+            'Votes': detail_product['aggregateRating']['reviewCount'],
+            'Imgs': response.css('#root > main > div > div.l-pd-header > div:nth-child(2) > div.l-pd-row.clearfix > div.l-pd-left > div.st-slider > div > div.swiper-wrapper.js--slide--full > div > img::attr(src)').getall(),
+            'CPU': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'CPU')),
+            'RAM': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'RAM')),
+            'ManHinh': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Màn hình')),
+            'OCung': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Ổ cứng')),
+            'Card': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Đồ họa')),
+            'HDH': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Hệ điều hành')),
+            'KT&KL': ', '.join([sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Kích thước'] + [sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Trọng lượng'])
         }
 
-# scrapy crawl TikiCrawler -o output3.json
-# JSON.parse(window.document.querySelectorAll("#pagination_contents > script")[0].innerHTML)
+# scrapy crawl NguyenKimCrawler -o outputFull.json

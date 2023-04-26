@@ -32,16 +32,16 @@ FEED_EXPORT_ENCODING = 'utf-8'
 #USER_AGENT = 'quotes_js_scraper (+http://www.yourdomain.com)'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = False
+ROBOTSTXT_OBEY = True
 
 ## settings.py
 
-SCRAPEOPS_API_KEY = '825509b9-5655-48f7-bd79-65c3fd744c19'
-SCRAPEOPS_PROXY_ENABLED = True
+# SCRAPEOPS_API_KEY = '825509b9-5655-48f7-bd79-65c3fd744c19'
+# SCRAPEOPS_PROXY_ENABLED = True
 
-DOWNLOADER_MIDDLEWARES = {
-    'scrapeops_scrapy_proxy_sdk.scrapeops_scrapy_proxy_sdk.ScrapeOpsScrapyProxySdk': 725,
-}
+# DOWNLOADER_MIDDLEWARES = {
+#     'scrapeops_scrapy_proxy_sdk.scrapeops_scrapy_proxy_sdk.ScrapeOpsScrapyProxySdk': 725,
+# }
 
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
