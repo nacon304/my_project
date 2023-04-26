@@ -8,29 +8,23 @@ from selenium.webdriver.support import expected_conditions as EC
 from urllib.parse import urlencode
 
 class WebCrawlerSpider(scrapy.Spider):
-    name = 'NguyenKimCrawler'
+    name = 'PhongVuCrawler'
 
     def start_requests(self):
-        crawler_search_url = 'https://www.nguyenkim.com/laptop-may-tinh-xach-tay/page-4/'
-        yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=30, wait_until=EC.presence_of_element_located((By.CSS_SELECTOR, '#pagination_contents > script')))
+        crawler_search_url = 'https://phongvu.vn/sitemap_seller_categories_NH01.xml'
+        yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=10)
 
     def parse_search_results(self, response):
-        # page = response.meta['trang']
-        # keyword = response.meta['keyword']
-        products = response.css('#pagination_contents > script::text').getall()
-        # products = json.loads(products) 
-        # print(products[0])
-        for i in range(26):
-            # product = json.loads(product)
-            # crawler_product_url = product['offers']['url']
-            # print(response.css(f'#pagination_contents > a').get())
-            item = json.loads(products[i])
-            # print(item)
-            yield {
-                'Url': item['offers']['url'],
-                'Name': item['name'],
-                'Price': item['offers']['price']
-            }
+        url_products  = response.css('div.folder > div.opened > div:nth-child(2) > span:nth-child(2)::text').getall()
+        if url_products is not None:
+            lenn = 800
+            maxx = lenn * 1
+            for i in range(1, len(url_products), 2):
+                url = url_products[i]
+                if i >= maxx and i < maxx + lenn:
+                    # print(url)
+                    yield SeleniumRequest(url=url, callback=self.parse_product_data, wait_time=10, wait_until=EC.presence_of_element_located((By.CSS_SELECTOR, '#__NEXT_DATA__')), meta={'url': url})
+
             # yield SeleniumRequest(url=crawler_product_url, callback=self.parse_product_data, wait_time=10, wait_until=EC.presence_of_element_located((By.CSS_SELECTOR, '#root > script:nth-child(4)')), meta={'url': crawler_product_url})
 
             # # Request Next Page
@@ -44,23 +38,27 @@ class WebCrawlerSpider(scrapy.Spider):
             #         yield SeleniumRequest(url=crawler_search_url, callback=self.parse_search_results, wait_time=0.5, meta={'keyword': keyword, 'page': p})
 
     def parse_product_data(self, response):
-        detail_product = json.loads(response.css('#root > script:nth-child(4)::text').get())
+        detail_product = json.loads(response.css('#__NEXT_DATA__::text').get())
         # print(detail_product['additionalProperty'][8]['value'])
         yield {
-            'Name': detail_product['name'],
-            'Price': findPrice(detail_product['offers']),
-            'Brand': detail_product['brand']['name'],
             'Url': response.meta['url'],
-            'Rated': detail_product['aggregateRating']['ratingValue'],
-            'Votes': detail_product['aggregateRating']['reviewCount'],
-            'Imgs': response.css('#root > main > div > div.l-pd-header > div:nth-child(2) > div.l-pd-row.clearfix > div.l-pd-left > div.st-slider > div > div.swiper-wrapper.js--slide--full > div > img::attr(src)').getall(),
-            'CPU': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'CPU')),
-            'RAM': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'RAM')),
-            'ManHinh': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Màn hình')),
-            'OCung': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Ổ cứng')),
-            'Card': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Đồ họa')),
-            'HDH': str(next(sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Hệ điều hành')),
-            'KT&KL': ', '.join([sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Kích thước'] + [sub['value'] for sub in detail_product['additionalProperty'] if sub['name'] == 'Trọng lượng'])
+            'Name': detail_product['props']['pageProps']['serverProduct']['product']['productInfo']['displayName'].split(' (')[0],
+            'Price': detail_product['props']['pageProps']['serverProduct']['priceAndPromotions']['price'],
+            'Original_Price': detail_product['props']['pageProps']['serverProduct']['priceAndPromotions']['supplierRetailPrice'],
+            'WebsiteID': 1,
+            'Type': 'Laptop',
+            'Imgs': [sub['url'] for sub in detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['images']],
+            'Desc': [
+                {
+                    'CPU': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][8]['value'],
+                    'OCung': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][12]['value'],
+                    'RAM': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][10]['value'],
+                    'Card': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][9]['value'],
+                    'ManHinh': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][11]['value'],
+                    'HDH': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][19]['value'],
+                    'KT&KL': detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][20]['value'] + ', ' + detail_product['props']['pageProps']['serverProduct']['product']['productDetail']['attributeGroups'][22]['value']
+                }
+            ]
         }
 
-# scrapy crawl NguyenKimCrawler -o outputFull.json
+# scrapy crawl PhongVuCrawler -o outputFull.json
